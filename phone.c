@@ -24,7 +24,7 @@ void start_duplex(int sock_fd)
 
 	if (pid == 0) {
 		/* 子プロセス: 受信 (Network -> Play) */
-		FILE* play_fp = popen("play -q -t raw -b 16 -c 1 -e s -r 44100 -", "w");
+		FILE* play_fp = popen("play -q -t raw -b 16 -c 1 -e s -r 48000 -", "w");
 		if (!play_fp) {
 			perror("popen play");
 			exit(1);
@@ -40,7 +40,7 @@ void start_duplex(int sock_fd)
 	}
 	else {
 		/* 親プロセス: 送信 (Rec -> Network) */
-		FILE* rec_fp = popen("rec -q -t raw -b 16 -c 1 -e s -r 44100 -", "r");
+		FILE* rec_fp = popen("rec -q -t raw -b 16 -c 1 -e s -r 48000 -", "r");
 		if (!rec_fp) {
 			perror("popen rec");
 			exit(1);
