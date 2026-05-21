@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -5,32 +6,55 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
+#include <string.h>
+
+int connect_retry(const char *server_ip, int server_port)
+{
+    while (1)
+    {
+        int s = socket(PF_INET, SOCK_STREAM, 0);
+        if (s < 0)
+        {
+            perror("socket");
+            sleep(1);
+            continue;
+        }
+
+        struct sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = inet_addr(server_ip);
+        addr.sin_port = htons(server_port);
+
+        int ret = connect(s, (struct sockaddr *)&addr, sizeof(addr));
+        if (ret == 0)
+        {
+            printf("connected\n");
+            return s;
+        }
+
+        perror("connect");
+        close(s);
+
+        // 1秒待って再試行
+        sleep(1);
+    }
+}
 
 int client_recv(char *server_ip, int server_port)
 {
-    int s = socket(PF_INET, SOCK_STREAM, 0);
-    if (s < 0)
-    {
-        perror("socket");
-        return 1;
-    }
-
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(server_ip);
-    addr.sin_port = htons(server_port);
-
-    int ret = connect(s, (struct sockaddr *)&addr, sizeof(addr));
-    if (ret < 0)
-    {
-        perror("connect");
-        close(s);
-        return 1;
-    };
+    // 接続が成功するまでやり直す.
+    int s = connect_retry(server_ip, server_port);
 
     FILE *fp;
     const char *cmdline = "play -t raw -b 16 -c 1 -e signed-integer -r 44100 -";
     fp = popen(cmdline, "w");
+    if (fp == NULL)
+    {
+        perror("popen");
+        close(s);
+        return 1;
+    }
 
     char data[4096];
     while (1)
@@ -129,6 +153,7 @@ int server_send(int port)
 int main(int argc, char *argv[])
 {
     int server_port = 50000;
+    // char *server_ip = "192.168.100.14";
     char *server_ip = "192.168.100.37";
 
     pid_t pid = fork();
